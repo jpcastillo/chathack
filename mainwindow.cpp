@@ -3,26 +3,35 @@
 #include <QMouseEvent>
 #include <QDebug>
 
-#define CHATHACKTEST
-
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
     loginErrorTimer(0), movable(false)
 {
     ui->setupUi(this);
-    ui->menuBar->setVisible(false);
-    ui->mainToolBar->setVisible(false);
+    ui->menuBar->hide();
+    ui->mainToolBar->hide();
     this->setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
-    ui->logoutButton->hide();
-    ui->toggleMicButton->hide();
+    hideLoggedInStuff();
+    //ui->textBrowser->setOpenExternalLinks(true);
     //
     connect(ui->closeButton,SIGNAL(clicked()),this,SLOT(closeButton()));
-    connect(ui->logoutButton,SIGNAL(clicked()),this,SIGNAL(logout()));
+    connect(ui->logoutButton,SIGNAL(clicked()),this,SLOT(logoutButton()));
     connect(ui->toggleMicButton,SIGNAL(clicked()),this,SIGNAL(toggleMic()));
 
 
     connect(ui->loginButton,SIGNAL(clicked()),this,SLOT(loginButton()));
+    connect(ui->roomNameLine,SIGNAL(returnPressed()),this,SLOT(loginButton()));
+    connect(ui->usernameLine,SIGNAL(returnPressed()),this,SLOT(loginButton()));
+
+    connect(ui->sendButton,SIGNAL(clicked()),this,SLOT(sendMessageButton()));
+    connect(ui->chatBox,SIGNAL(returnPressed()),this,SLOT(sendMessageButton()));
+
+    //TEST
+    connect(this,SIGNAL(tryLogin(QString,QString)),this,SLOT(login()));
+    connect(this,SIGNAL(tryLogout(QString)),this,SLOT(logout()));
+    connect(this,SIGNAL(trySendMessage(QString)),this,SLOT(handleSendMessage(QString)));
+    //END TEST
 
     connect(this,SIGNAL(badLogin(QString)),this,SLOT(displayLoginError(QString)));
 }
@@ -34,7 +43,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::closeButton()
 {
-    emit logout();
+    emit tryClose();
     close();
 }
 
@@ -56,6 +65,11 @@ void MainWindow::loginButton()
     emit tryLogin(username, roomName);
 }
 
+void MainWindow::logoutButton()
+{
+    emit tryLogout("Current Room");
+}
+
 void MainWindow::mousePressEvent(QMouseEvent *e)
 {
     mouseClickX = e->x();
@@ -66,6 +80,7 @@ void MainWindow::mousePressEvent(QMouseEvent *e)
 
 void MainWindow::mouseReleaseEvent(QMouseEvent *e)
 {
+   Q_UNUSED(e)
     movable = false;
 }
 
@@ -86,6 +101,24 @@ void MainWindow::timerEvent(QTimerEvent *e)
 
 }
 
+void MainWindow::showLoggedInStuff()
+{
+    ui->logoutButton->show();
+    ui->toggleMicButton->show();
+    ui->chatIcon->show();
+    ui->roomLabel->show();
+    ui->chatMessageLabel->show();
+}
+
+void MainWindow::hideLoggedInStuff()
+{
+    ui->logoutButton->hide();
+    ui->toggleMicButton->hide();
+    ui->chatIcon->hide();
+    ui->roomLabel->hide();
+    ui->chatMessageLabel->hide();
+}
+
 void MainWindow::displayLoginError(QString msg)
 {
     ui->loginErrorLabel->setText(msg);
@@ -95,4 +128,28 @@ void MainWindow::displayLoginError(QString msg)
     }
     loginErrorTimer = startTimer(2000);
 
+}
+
+void MainWindow::login()
+{
+    showLoggedInStuff();
+    ui->stackedWidget->setCurrentWidget(ui->chatPage);
+    ui->roomLabel->setText(QString("%1@%2").arg(ui->usernameLine->text()).arg(ui->roomNameLine->text()));
+}
+
+void MainWindow::logout()
+{
+    hideLoggedInStuff();
+    ui->stackedWidget->setCurrentWidget(ui->loginPage);
+}
+
+void MainWindow::sendMessageButton()
+{
+    emit trySendMessage(ui->chatBox->text().toHtmlEscaped());
+    ui->chatBox->clear();
+}
+
+void MainWindow::handleSendMessage(QString msg)
+{
+    qDebug() << msg;
 }

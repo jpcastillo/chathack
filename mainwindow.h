@@ -18,14 +18,26 @@ public:
 public slots:
     void closeButton();
     void loginButton();
+    void logoutButton();
     void displayLoginError(QString);
+    void login();
+    void logout();
+    void sendMessageButton();
+    void handleSendMessage(QString msg);
 
 signals:
-    void logout();
+    void tryClose();
+    void tryLogout(QString);
     void toggleMic();
-    void login();
     void badLogin(QString);
     void tryLogin(QString, QString);
+    void trySendMessage(QString);
+
+    //zach's signals
+//    void ConnectionTimeout();
+//    void ServerResponseError();
+//    void LoginSuccess(QString current_channel);
+//    void LoginFailure();
 
 protected:
     void mousePressEvent(QMouseEvent *e);
@@ -34,6 +46,9 @@ protected:
     void timerEvent(QTimerEvent *e);
 
 private:
+    void showLoggedInStuff();
+    void hideLoggedInStuff();
+
     Ui::MainWindow *ui;
     int mouseClickX, mouseClickY;
     int loginErrorTimer;
