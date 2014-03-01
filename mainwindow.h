@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include "client.h"
 
 namespace Ui {
 class MainWindow;
@@ -32,6 +33,7 @@ signals:
     void badLogin(QString);
     void tryLogin(QString, QString);
     void trySendMessage(QString);
+    void startConnection(QString, QString);
 
     //zach's signals
 //    void ConnectionTimeout();
@@ -53,6 +55,9 @@ private:
     int mouseClickX, mouseClickY;
     int loginErrorTimer;
     bool movable;
+
+    Client *c;
+    QThread *workerThread;
 };
 
 #endif // MAINWINDOW_H

@@ -6,8 +6,12 @@
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
-    loginErrorTimer(0), movable(false)
+    loginErrorTimer(0), movable(false),
+    c(new Client()),
+    workerThread(new QThread(this))
 {
+    workerThread->start();
+    connect(workerThread,SIGNAL(finished()),workerThread,SLOT(deleteLater()));
     ui->setupUi(this);
     ui->menuBar->hide();
     ui->mainToolBar->hide();
@@ -34,11 +38,19 @@ MainWindow::MainWindow(QWidget *parent) :
     //END TEST
 
     connect(this,SIGNAL(badLogin(QString)),this,SLOT(displayLoginError(QString)));
+    connect(c,SIGNAL(LOGIN(QString,QString)), c,SLOT(login(QString,QString)));
+    connect(this,SIGNAL(startConnection(QString,QString)),c,SLOT(start_run(QString,QString)));
+    c->moveToThread(workerThread);
+    emit startConnection("zach", "1");
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+    c->deleteLater();
+    //workerThread->terminate();
+
+    workerThread->wait();
 }
 
 void MainWindow::closeButton()
