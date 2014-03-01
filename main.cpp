@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
     QCoreApplication a(argc, argv);
 
     cout << "---- Server Started ---\n";
-    //Server myServer;
+    Server myServer;
     //myServer.listen();
 
     Database db(QString("24.180.56.55"), 3066, QString("chathack"), QString("root"), QString(""));

@@ -28,12 +28,14 @@ class Server : public QTcpServer
 
     protected:
         void incomingConnection(qintptr sfd);
+        QStringList myCmds;
 
     private:
         bool setup(); // initial server setup
-        bool processRequest(); // will spawn a thread to handle client request
+        bool processRequest(QString cmd); // will spawn a thread to handle client request
         void read();
         bool write_c(QString msg);
+        QStringList parse(QString cmd);
         qintptr socketFd; // server socket file descriptor
         quint16 svrPort; // server port to listen on
         QTcpServer *server;
