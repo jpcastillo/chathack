@@ -7,8 +7,8 @@
 #include <QWidget>
 #include <QApplication>
 
-const QHostAddress DEFAULT_HOST("169.235.31.7");
-const quint16 DEFAULT_PORT = 6510;
+const QHostAddress DEFAULT_HOST("169.235.31.253");
+const quint16 DEFAULT_PORT = 6501;
 const quint16 BLOCK_SIZE = 1;
 int NUM_ARGS[NUM_COMMANDS];
 

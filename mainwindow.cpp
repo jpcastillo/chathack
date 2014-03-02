@@ -100,6 +100,7 @@ void MainWindow::loginButton()
 void MainWindow::logoutButton()
 {
     emit tryLogout();
+    logout();
 }
 
 void MainWindow::joinButton()
@@ -235,6 +236,8 @@ void MainWindow::displayLoginError(QString msg)
 
 void MainWindow::login(QString room)
 {
+    ui->usernameLine->clear();
+    ui->roomNameLine->clear();
     showLoggedInStuff();
     ui->stackedWidget->setCurrentWidget(ui->chatPage);
     ui->roomsListWidget->clear();
