@@ -13,15 +13,16 @@ Worker::Worker(qintptr socketDescriptor, QObject *parent, QThread *_self, QTcpSo
 {
     myCmds << "slogin" << "clogin" << "sjoin" << "cjoin" << "sleave"
                << "cleave" << "slogout" << "clogout" << "sexit" << "cexit"
-               << "sulroom" << "culroom" << "ssmroom" << "csmroom";
+               << "sulroom" << "culroom" << "ssmroom" << "csmroom" << "crecvmsg";
     connect(this,SIGNAL(shouldRun()),this,SLOT(run()));
+    uuid = -1;
 }
 
 Worker::~Worker()
 {
     //qDebug() << "destroyed";
     mutex.lock();
-    log.log("Worker: I was just killed.\n");
+    log.log("Worker: I just died.\n");
     mutex.unlock();
 }
 
@@ -64,7 +65,7 @@ bool Worker::processRequest(QString cmd) // will spawn a thread to handle client
     //a  "sjoin"  b  "sjoin"
     //slogin|channel|type|slogin
     QStringList args(parse(cmd));
-    qDebug() << "size " << args.size();
+    //qDebug() << "size " << args.size();
     if(args.size() == 0)
         return false;
     //qDebug() << "a " << args[0] << " b "<< args[args.size()-1];
@@ -74,14 +75,45 @@ bool Worker::processRequest(QString cmd) // will spawn a thread to handle client
     switch (cntrl)
     {
     case 0:
-        //qDebug() << "wtf happened";
-        write_c(QString("Hello, client. I got your login command!!\n"));
+        //clogin
+        //clogin|room|uuid|status|clogin
+        write_c(QString(myCmds[cntrl+1]+"|hack|28|0|"+myCmds[cntrl+1]));
         break;
-    case 1:
-        write_c(QString("Hello, client. I got your join command!!\n"));
+    case 2:
+        //cjoin
+        //cjoin|channel|status|cjoin
+        write_c(QString(myCmds[cntrl+1]+"|hack|0|"+myCmds[cntrl+1]));
+        break;
+    case 4:
+        //cleave
+        //cleave|channel|status|cleave
+        write_c(QString(myCmds[cntrl+1]+"|hack|0|"+myCmds[cntrl+1]));
+        break;
+    case 6:
+        //clogout
+        //clogout|status|clogout
+        write_c(QString(myCmds[cntrl+1]+"|0|"+myCmds[cntrl+1]));
+        break;
+    case 8:
+        //cexit
+        //cexit|status|cexit
+        write_c(QString(myCmds[cntrl+1]+"|0|"+myCmds[cntrl+1]));
+        break;
+    case 10:
+        //culroom
+        //culroom|<comma delimited list of users>|culroom
+        write_c(QString(myCmds[cntrl+1]+"|john,brian|"+myCmds[cntrl+1]));
+        break;
+    case 12:
+        //csmroom
+        //csmroom|room|status|csmroom
+        write_c(QString(myCmds[cntrl+1]+"|hack|0|"+myCmds[cntrl+1]));
+        //crecvmsg
+        //crecvmsg|room|user|message|crecvmsg
+        write_c(QString(myCmds[cntrl+2]+"|hack|28|dan|"+args[4]+"|"+myCmds[cntrl+2]));
         break;
     default:
-        write_c(QString("Hello, client. Idk wtf you want.\n"));
+        write_c(QString("Hello, client. Idk wtf you want."));
         break;
     }
 

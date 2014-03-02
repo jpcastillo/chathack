@@ -1,5 +1,4 @@
 #include "server.h"
-#include "worker.h"
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QDebug>
@@ -7,8 +6,7 @@
 Server::Server(QObject* parent) :
     QTcpServer(parent), log("chathack_daemon.log")
 {
-    svrPort = 6501;
-    tryListen();
+    svrPort = 6510;
 }
 
 Server::~Server()
@@ -30,7 +28,8 @@ void Server::incomingConnection(qintptr handle) // handler for new connection fr
 {
     log.log("Server: New connection request.\n");
     QThread *thread = new QThread();
-    Worker *worker = new Worker(handle,0,thread,NULL,this);//socket->socketDescriptor(),0,thread,socket);
+    Worker *worker = new Worker(handle,0,thread,NULL,this);
+    workers.insert(thread,worker);
     connect(thread,SIGNAL(finished()),worker,SLOT(deleteLater()));
     connect(worker,SIGNAL(clientDisconnect(QThread*)),this,SLOT(onDisconnect(QThread*)));
     connect(this,SIGNAL(destroyed()),thread,SLOT(quit()));
@@ -46,6 +45,7 @@ void Server::incomingConnection(qintptr handle) // handler for new connection fr
 void Server::onDisconnect(QThread *t)
 {
     log.log("Server: Client disconnection occurred.\n");
+    workers.remove(t);
     t->quit();
     t->wait();
     t->deleteLater();

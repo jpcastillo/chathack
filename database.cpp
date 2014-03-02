@@ -10,7 +10,8 @@ Database::Database(QString host, int port, QString dbname, QString user, QString
     connection.setDatabaseName(dbname);
     connection.setUserName(user);
     connection.setPassword(pass);
-    if (!connection.open()) {
+    if (!connection.open())
+    {
         qDebug() << "Cannot open database";
         /*
          QMessageBox::critical(0, qApp->tr("Cannot open database"),

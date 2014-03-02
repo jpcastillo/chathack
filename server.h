@@ -2,12 +2,12 @@
 #define SERVER_H
 
 #include <QTcpServer>
-#include <iostream>
+#include <QHash>
 #include <string>
 #include "logwriter.h"
+#include "worker.h"
 
 class QTcpSocket;
-
 
 using namespace std;
 
@@ -27,6 +27,7 @@ class Server : public QTcpServer
         quint16 svrPort; // server port to listen on
         QTcpSocket *socket;
         LogWriter log;
+        QHash<QThread *,Worker *> workers;
 
     protected:
         virtual void incomingConnection(qintptr handle);

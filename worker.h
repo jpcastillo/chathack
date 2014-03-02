@@ -33,6 +33,7 @@ private:
     QStringList myCmds;
     qintptr socketFd; // server socket file descriptor
     QThread *self;
+    int uuid;
 
 private slots:
     void onReadyRead();
