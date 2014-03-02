@@ -4,7 +4,7 @@
 #include <QDebug>
 #include <QScrollBar>
 #include <QInputDialog>
-
+#include "program.cc"
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -27,6 +27,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->toggleMicButton,SIGNAL(clicked()),this,SIGNAL(toggleMic()));
     connect(ui->joinButton,SIGNAL(clicked()),this,SLOT(joinButton()));
     connect(ui->leaveButton,SIGNAL(clicked()),this,SLOT(leaveButton()));
+    connect(ui->emailButton,SIGNAL(clicked()),this,SLOT(emailButton()));
 
     //GUI login slots
     connect(ui->loginButton,SIGNAL(clicked()),this,SLOT(loginButton()));
@@ -115,6 +116,25 @@ void MainWindow::leaveButton()
     emit tryLeave(c->roomName,"0");
 }
 
+void MainWindow::emailButton()
+{
+    QString d = QInputDialog::getText(this,"Email","Please enter your email:");
+    if(d.isEmpty())
+        return;
+    QRegExp re;
+
+    string destination = d.toStdString(); // Format: Name <example@something.com>
+    string subject = QString("Conversation @ %1").arg(c->roomName).toStdString();     // Format: Subject
+    string source = "Bat Chat <bat@chat.com>";      // Format: My Name <example@another.com>
+    string text = this->roomText[c->roomName].replace("color:#ffffff","color:#555555").toStdString();        // Rest of the text
+    /*destination = "Sam <shong010@ucr.edu>";
+    subject = "Hello World!!";
+    source = "torch <torch@stuff.com>";
+    text = "sam: lol!\njohn: stuff\nsam: again";*/
+    qDebug() << "Send Grid! :)";
+    sendGrid(destination, subject, source, text);
+}
+
 void MainWindow::mousePressEvent(QMouseEvent *e)
 {
     mouseClickX = e->x();
@@ -166,6 +186,7 @@ void MainWindow::showLoggedInStuff()
     ui->chatMessageLabel->show();
     ui->leaveButton->show();
     ui->joinButton->show();
+    ui->emailButton->show();
 }
 
 void MainWindow::hideLoggedInStuff()
@@ -177,6 +198,7 @@ void MainWindow::hideLoggedInStuff()
     ui->chatMessageLabel->hide();
     ui->leaveButton->hide();
     ui->joinButton->hide();
+    ui->emailButton->hide();
 }
 
 void MainWindow::setRoom(QString room)

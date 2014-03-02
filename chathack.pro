@@ -14,7 +14,8 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    client.cpp
+    client.cpp \
+    program.cc
 
 HEADERS  += mainwindow.h \
     client.h \
@@ -26,3 +27,6 @@ RESOURCES += \
     resources.qrc
 
 RC_FILE = chathack.rc
+
+OTHER_FILES += \
+    send2grid.py

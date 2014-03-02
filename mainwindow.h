@@ -23,6 +23,7 @@ public slots:
     void logoutButton();
     void joinButton();
     void leaveButton();
+    void emailButton();
     void displayLoginError(QString);
     void login(QString room);
     void logout();
