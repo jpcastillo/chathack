@@ -17,9 +17,12 @@ SOURCES += main.cpp\
     client.cpp
 
 HEADERS  += mainwindow.h \
-    client.h
+    client.h \
+    statustype.h
 
 FORMS    += mainwindow.ui
 
 RESOURCES += \
     resources.qrc
+
+RC_FILE = chathack.rc

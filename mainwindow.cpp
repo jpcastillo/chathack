@@ -2,6 +2,7 @@
 #include "ui_mainwindow.h"
 #include <QMouseEvent>
 #include <QDebug>
+#include <QScrollBar>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -18,37 +19,45 @@ MainWindow::MainWindow(QWidget *parent) :
     this->setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
     hideLoggedInStuff();
     //ui->textBrowser->setOpenExternalLinks(true);
-    //
+    //button slots
     connect(ui->closeButton,SIGNAL(clicked()),this,SLOT(closeButton()));
     connect(ui->logoutButton,SIGNAL(clicked()),this,SLOT(logoutButton()));
     connect(ui->toggleMicButton,SIGNAL(clicked()),this,SIGNAL(toggleMic()));
 
-
+    //GUI login slots
     connect(ui->loginButton,SIGNAL(clicked()),this,SLOT(loginButton()));
     connect(ui->roomNameLine,SIGNAL(returnPressed()),this,SLOT(loginButton()));
     connect(ui->usernameLine,SIGNAL(returnPressed()),this,SLOT(loginButton()));
 
+    //send chat messages to client
     connect(ui->sendButton,SIGNAL(clicked()),this,SLOT(sendMessageButton()));
     connect(ui->chatBox,SIGNAL(returnPressed()),this,SLOT(sendMessageButton()));
 
-    //TEST
-    connect(this,SIGNAL(tryLogin(QString,QString)),this,SLOT(login()));
-    connect(this,SIGNAL(tryLogout(QString)),this,SLOT(logout()));
-    connect(this,SIGNAL(trySendMessage(QString)),this,SLOT(handleSendMessage(QString)));
-    //END TEST
+    //send other commands to client
+    connect(this,SIGNAL(tryLogin(QString,QString)),c,SLOT(slogin(QString,QString)));
+    connect(this,SIGNAL(tryLogout()),c,SLOT(slogout()));
+    connect(this,SIGNAL(trySendMessage(QString,QString,QString)),c,SLOT(ssmroom(QString,QString,QString)));
+    //connect(this,SIGNAL(trySendMessage(QString)),this,SLOT(handleSendMessage(QString)));
+
+    //recieve messages from clients and respond to them
+    connect(c,SIGNAL(loginSuccess(QString)),this,SLOT(login(QString)));
+    connect(c,SIGNAL(logout()),this,SLOT(logout()));
+    connect(c,SIGNAL(recievedText(QString,QString,QString)),this,SLOT(handleRecieveText(QString,QString,QString)));
+    connect(c,SIGNAL(join(QString)),this,SLOT(joinRoom(QString)));
+    connect(c,SIGNAL(die()),this,SLOT(close()));
+    connect(c,SIGNAL(leave(QString)),this,SLOT(leaveRoom(QString)));
+    connect(c,SIGNAL(usersListRoom(QStringList)),this,SLOT(usersListRoom(QStringList)));
 
     connect(this,SIGNAL(badLogin(QString)),this,SLOT(displayLoginError(QString)));
-    connect(c,SIGNAL(LOGIN(QString,QString)), c,SLOT(login(QString,QString)));
-    connect(this,SIGNAL(startConnection(QString,QString)),c,SLOT(start_run(QString,QString)));
     c->moveToThread(workerThread);
-    emit startConnection("zach", "1");
+    //emit startConnection("zach", "1");
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
     c->deleteLater();
-    //workerThread->terminate();
+    workerThread->quit();
 
     workerThread->wait();
 }
@@ -75,11 +84,12 @@ void MainWindow::loginButton()
     }
 
     emit tryLogin(username, roomName);
+    //login();
 }
 
 void MainWindow::logoutButton()
 {
-    emit tryLogout("Current Room");
+    emit tryLogout();
 }
 
 void MainWindow::mousePressEvent(QMouseEvent *e)
@@ -120,6 +130,8 @@ void MainWindow::showLoggedInStuff()
     ui->chatIcon->show();
     ui->roomLabel->show();
     ui->chatMessageLabel->show();
+    ui->leaveButton->show();
+    ui->joinButton->show();
 }
 
 void MainWindow::hideLoggedInStuff()
@@ -129,6 +141,29 @@ void MainWindow::hideLoggedInStuff()
     ui->chatIcon->hide();
     ui->roomLabel->hide();
     ui->chatMessageLabel->hide();
+    ui->leaveButton->hide();
+    ui->joinButton->hide();
+}
+
+void MainWindow::setRoom(QString room)
+{
+    QString user = c->userName;
+    ui->roomLabel->setText(QString("%1@%2").arg(user).arg(room));
+    ui->usersListWidget->clear();
+    ui->usersListWidget->addItems(this->users[room]);
+    foreach(QListWidgetItem * item, ui->roomsListWidget->selectedItems())
+    {
+        item->setSelected(false);
+    }
+
+    foreach(QListWidgetItem * item, ui->roomsListWidget->findItems(room,Qt::MatchExactly))
+    {
+        item->setSelected(true);
+    }
+
+
+
+
 }
 
 void MainWindow::displayLoginError(QString msg)
@@ -142,11 +177,13 @@ void MainWindow::displayLoginError(QString msg)
 
 }
 
-void MainWindow::login()
+void MainWindow::login(QString room)
 {
     showLoggedInStuff();
     ui->stackedWidget->setCurrentWidget(ui->chatPage);
-    ui->roomLabel->setText(QString("%1@%2").arg(ui->usernameLine->text()).arg(ui->roomNameLine->text()));
+    ui->roomsListWidget->clear();
+    ui->roomsListWidget->addItem(room);
+    setRoom(room);
 }
 
 void MainWindow::logout()
@@ -157,11 +194,49 @@ void MainWindow::logout()
 
 void MainWindow::sendMessageButton()
 {
-    emit trySendMessage(ui->chatBox->text().toHtmlEscaped());
+    emit trySendMessage(c->roomName,"0",ui->chatBox->text().toHtmlEscaped());
     ui->chatBox->clear();
 }
 
 void MainWindow::handleSendMessage(QString msg)
 {
-    qDebug() << msg;
+    //qDebug() << msg;
+    handleRecieveText("1","dpasillas",msg);
+}
+
+void MainWindow::handleRecieveText(QString channel, QString user, QString msg)
+{
+    QString messageFormat(
+                "<p "
+                "style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">"
+                "<span style=\" font-weight:600; color:#36e1d3;\">"
+                "%1: "
+                "</span>"
+                "<span style=\" color:#ffffff\">"
+                "%2"
+                "</span></p>"
+                );
+    ui->textBrowser->append(messageFormat.arg(user,msg));
+    //qDebug() << QString("HTML escaped: ") + messageFormat.arg(user,msg);
+
+    ui->textBrowser->verticalScrollBar()->setValue(ui->textBrowser->verticalScrollBar()->maximum());
+}
+
+void MainWindow::joinRoom(QString room)
+{
+    ui->roomsListWidget->addItem(room);
+    setRoom(room);
+}
+
+void MainWindow::leaveRoom(QString room)
+{
+    this->roomText.remove(room);
+    this->users.remove(room);
+}
+
+void MainWindow::usersListRoom(QStringList users)
+{
+    qDebug() << "void MainWindow::usersListRoom(QStringList users)";
+    this->users[c->roomName] = users;
+    setRoom(c->roomName);
 }

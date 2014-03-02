@@ -5,5 +5,9 @@
         <file>images/microphonebutton.png</file>
         <file>images/no_microphonebutton.png</file>
         <file>images/x.png</file>
+        <file>images/32x32transparentbg.png</file>
+        <file>icon.ico</file>
+        <file>images/minus.png</file>
+        <file>images/plus.png</file>
     </qresource>
 </RCC>

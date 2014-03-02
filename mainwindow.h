@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include "client.h"
+#include <QHash>
 
 namespace Ui {
 class MainWindow;
@@ -21,18 +22,22 @@ public slots:
     void loginButton();
     void logoutButton();
     void displayLoginError(QString);
-    void login();
+    void login(QString room);
     void logout();
     void sendMessageButton();
     void handleSendMessage(QString msg);
+    void handleRecieveText(QString channel, QString user, QString msg);
+    void joinRoom(QString room);
+    void leaveRoom(QString room);
+    void usersListRoom(QStringList users);
 
 signals:
     void tryClose();
-    void tryLogout(QString);
+    void tryLogout();
     void toggleMic();
     void badLogin(QString);
     void tryLogin(QString, QString);
-    void trySendMessage(QString);
+    void trySendMessage(QString,QString,QString);
     void startConnection(QString, QString);
 
     //zach's signals
@@ -50,6 +55,7 @@ protected:
 private:
     void showLoggedInStuff();
     void hideLoggedInStuff();
+    void setRoom(QString room);
 
     Ui::MainWindow *ui;
     int mouseClickX, mouseClickY;
@@ -58,6 +64,8 @@ private:
 
     Client *c;
     QThread *workerThread;
+    QHash<QString, QStringList> users;
+    QHash<QString, QString> roomText;
 };
 
 #endif // MAINWINDOW_H
