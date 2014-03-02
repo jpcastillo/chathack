@@ -4,6 +4,7 @@
 #include <QTextStream>
 #include <QTime>
 #include <string>
+
 class LogWriter
 {
 public:

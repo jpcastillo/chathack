@@ -18,9 +18,11 @@ TEMPLATE = app
 SOURCES += main.cpp \
     server.cpp \
     logwriter.cpp \
-    database.cpp
+    database.cpp \
+    worker.cpp
 
 HEADERS += \
     server.h \
     logwriter.h \
-    database.h
+    database.h \
+    worker.h
