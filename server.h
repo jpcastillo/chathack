@@ -6,10 +6,6 @@
 #include <string>
 #include "logwriter.h"
 
-//#include "socketreader.h"
-//#include "datareader.h"
-
-//class QTcpServer;
 class QTcpSocket;
 
 
@@ -24,23 +20,18 @@ class Server : public QTcpServer
     public:
         Server( QObject* parent = 0 ); // default cnstr
         ~Server(); // default destr
-        //void listen();
-
-    protected:
-        //QStringList myCmds;
+        void tryListen();
 
     private:
         int socketFd; // server socket file descriptor
         quint16 svrPort; // server port to listen on
-        QTcpServer *server;
         QTcpSocket *socket;
         LogWriter log;
 
-protected:
+    protected:
         virtual void incomingConnection(qintptr handle);
 
     private slots:
-        void onNewConnect(); // handler for new connection from client
         void onDisconnect(QThread *t);
 };
 

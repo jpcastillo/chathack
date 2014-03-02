@@ -6,9 +6,10 @@
 
 QMutex Worker::mutex;
 
-Worker::Worker(qintptr socketDescriptor, QObject *parent, QThread *_self, QTcpSocket *_client) :
+Worker::Worker(qintptr socketDescriptor, QObject *parent, QThread *_self, QTcpSocket *_client, QTcpServer *_server) :
     QObject(parent), socketFd(socketDescriptor),
-    log("chathack_workerdaemon.log"), self(_self), client(_client)
+    log("chathack_workerdaemon.log"), self(_self), client(_client),
+    server(_server)
 {
     myCmds << "slogin" << "clogin" << "sjoin" << "cjoin" << "sleave"
                << "cleave" << "slogout" << "clogout" << "sexit" << "cexit"
@@ -31,7 +32,7 @@ void Worker::startRun()
 
 void Worker::run()
 {
-    qDebug() << "void Worker::run()";
+    //qDebug() << "void Worker::run()";
     client = new QTcpSocket();
     if (!client->setSocketDescriptor(socketFd))
     {
@@ -40,6 +41,10 @@ void Worker::run()
         mutex.unlock();
         return;
     }
+
+    connect(self,SIGNAL(finished()),client,SLOT(deleteLater()));
+    connect(client,SIGNAL(readyRead()),this,SLOT(onReadyRead()));
+    connect(client,SIGNAL(disconnected()),this,SLOT(onDisconnect()));
 
     mutex.lock();
     log.log("Worker: Worker thread spawned successfully.\n");
@@ -62,7 +67,7 @@ bool Worker::processRequest(QString cmd) // will spawn a thread to handle client
     qDebug() << "size " << args.size();
     if(args.size() == 0)
         return false;
-    qDebug() << "a " << args[0] << " b "<< args[args.size()-1];
+    //qDebug() << "a " << args[0] << " b "<< args[args.size()-1];
     if(args[0] != args[args.size()-1])
         return false;
     int cntrl = myCmds.indexOf(args[0]);
@@ -79,8 +84,6 @@ bool Worker::processRequest(QString cmd) // will spawn a thread to handle client
         write_c(QString("Hello, client. Idk wtf you want.\n"));
         break;
     }
-    //foreach(const QString &str, args)
-        //qDebug() << str;
 
     return true;
 }
@@ -139,7 +142,6 @@ bool Worker::write_c(QString msg)
     QString tmp(msg);
     int msgLen = tmp.length();
     tmp[msgLen] = '\n';
-    //client->write(tmp.toStdString().c_str());
     return client->write(tmp.toStdString().c_str()) != -1;
 }
 
@@ -152,13 +154,8 @@ QStringList Worker::parse(QString cmd)
 
 void Worker::onDisconnect()
 {
+    mutex.lock();
     log.log("Worker: Client disconnection occurred.\n");
+    mutex.unlock();
     emit clientDisconnect(self);
-    // update db
-    // send signal to server that i am done
-    // wait for thread done
-    //disconnect(socket, SIGNAL(readyRead()));
-    client->deleteLater();
-    //self->deleteLater();
-    //thread()->quit();
 }

@@ -13,7 +13,7 @@ class Worker : public QObject
 {
 Q_OBJECT
 public:
-    Worker(qintptr socketDescriptor, QObject *parent, QThread *_self, QTcpSocket *_client);
+    Worker(qintptr socketDescriptor, QObject *parent, QThread *_self, QTcpSocket *_client, QTcpServer *_server);
     ~Worker();
 
     void startRun();
