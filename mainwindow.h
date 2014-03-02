@@ -21,6 +21,8 @@ public slots:
     void closeButton();
     void loginButton();
     void logoutButton();
+    void joinButton();
+    void leaveButton();
     void displayLoginError(QString);
     void login(QString room);
     void logout();
@@ -34,10 +36,13 @@ public slots:
 signals:
     void tryClose();
     void tryLogout();
+    void tryJoin(QString,QString);
+    void tryLeave(QString,QString);
     void toggleMic();
     void badLogin(QString);
     void tryLogin(QString, QString);
     void trySendMessage(QString,QString,QString);
+    void requestUsersList(QString);
     void startConnection(QString, QString);
 
     //zach's signals
@@ -51,6 +56,7 @@ protected:
     void mouseReleaseEvent(QMouseEvent *e);
     void mouseMoveEvent(QMouseEvent *e);
     void timerEvent(QTimerEvent *e);
+    bool eventFilter(QObject *o, QEvent *e);
 
 private:
     void showLoggedInStuff();

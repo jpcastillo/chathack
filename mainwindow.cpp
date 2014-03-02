@@ -3,6 +3,8 @@
 #include <QMouseEvent>
 #include <QDebug>
 #include <QScrollBar>
+#include <QInputDialog>
+
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -23,6 +25,8 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->closeButton,SIGNAL(clicked()),this,SLOT(closeButton()));
     connect(ui->logoutButton,SIGNAL(clicked()),this,SLOT(logoutButton()));
     connect(ui->toggleMicButton,SIGNAL(clicked()),this,SIGNAL(toggleMic()));
+    connect(ui->joinButton,SIGNAL(clicked()),this,SLOT(joinButton()));
+    connect(ui->leaveButton,SIGNAL(clicked()),this,SLOT(leaveButton()));
 
     //GUI login slots
     connect(ui->loginButton,SIGNAL(clicked()),this,SLOT(loginButton()));
@@ -37,6 +41,9 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(this,SIGNAL(tryLogin(QString,QString)),c,SLOT(slogin(QString,QString)));
     connect(this,SIGNAL(tryLogout()),c,SLOT(slogout()));
     connect(this,SIGNAL(trySendMessage(QString,QString,QString)),c,SLOT(ssmroom(QString,QString,QString)));
+    connect(this,SIGNAL(requestUsersList(QString)),c,SLOT(sulroom(QString)));
+    connect(this,SIGNAL(tryJoin(QString,QString)),c,SLOT(sjoin(QString,QString)));
+    connect(this,SIGNAL(tryLeave(QString,QString)),c,SLOT(sleave(QString,QString)));
     //connect(this,SIGNAL(trySendMessage(QString)),this,SLOT(handleSendMessage(QString)));
 
     //recieve messages from clients and respond to them
@@ -50,7 +57,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
     connect(this,SIGNAL(badLogin(QString)),this,SLOT(displayLoginError(QString)));
     c->moveToThread(workerThread);
-    //emit startConnection("zach", "1");
+
+    ui->roomsListWidget->installEventFilter(this);
+    ui->usersListWidget->installEventFilter(this);
 }
 
 MainWindow::~MainWindow()
@@ -92,6 +101,20 @@ void MainWindow::logoutButton()
     emit tryLogout();
 }
 
+void MainWindow::joinButton()
+{
+    static QRegExp validName("([0-9a-zA-Z])+");
+    QString room = QInputDialog::getText(this,"RoomName","Room:");
+    if(!validName.exactMatch(room))
+        return;
+    emit tryJoin(room,"0");
+}
+
+void MainWindow::leaveButton()
+{
+    emit tryLeave(c->roomName,"0");
+}
+
 void MainWindow::mousePressEvent(QMouseEvent *e)
 {
     mouseClickX = e->x();
@@ -123,6 +146,17 @@ void MainWindow::timerEvent(QTimerEvent *e)
 
 }
 
+bool MainWindow::eventFilter(QObject *o, QEvent *e)
+{
+    if(o == ui->roomsListWidget || o == ui->usersListWidget)
+    {
+        if(e->type() == QEvent::MouseButtonPress)
+            return true;
+    }
+    return QObject::eventFilter(o,e);
+
+}
+
 void MainWindow::showLoggedInStuff()
 {
     ui->logoutButton->show();
@@ -151,6 +185,7 @@ void MainWindow::setRoom(QString room)
     ui->roomLabel->setText(QString("%1@%2").arg(user).arg(room));
     ui->usersListWidget->clear();
     ui->usersListWidget->addItems(this->users[room]);
+    ui->textBrowser->setHtml(this->roomText[room]);
     foreach(QListWidgetItem * item, ui->roomsListWidget->selectedItems())
     {
         item->setSelected(false);
@@ -161,8 +196,7 @@ void MainWindow::setRoom(QString room)
         item->setSelected(true);
     }
 
-
-
+    ui->textBrowser->setHtml(this->roomText[room]);
 
 }
 
@@ -216,8 +250,12 @@ void MainWindow::handleRecieveText(QString channel, QString user, QString msg)
                 "%2"
                 "</span></p>"
                 );
-    ui->textBrowser->append(messageFormat.arg(user,msg));
+    this->roomText[channel].append(messageFormat.arg(user,msg));
+    //ui->textBrowser->append(messageFormat.arg(user,msg));
     //qDebug() << QString("HTML escaped: ") + messageFormat.arg(user,msg);
+
+    if(channel == c->roomName)
+        ui->textBrowser->setHtml(this->roomText[channel]);
 
     ui->textBrowser->verticalScrollBar()->setValue(ui->textBrowser->verticalScrollBar()->maximum());
 }
@@ -232,6 +270,19 @@ void MainWindow::leaveRoom(QString room)
 {
     this->roomText.remove(room);
     this->users.remove(room);
+
+    ui->roomsListWidget->clear();
+    ui->roomsListWidget->addItems(users.keys());
+
+    if(ui->roomsListWidget->count() > 0)
+    {
+        setRoom(ui->roomsListWidget->item(0)->text());
+    }
+    else
+    {
+        emit tryLogout();
+        logout();
+    }
 }
 
 void MainWindow::usersListRoom(QStringList users)

@@ -369,7 +369,7 @@ QTextBrowser, QListWidget{
                <bool>false</bool>
               </property>
               <property name="selectionMode">
-               <enum>QAbstractItemView::NoSelection</enum>
+               <enum>QAbstractItemView::SingleSelection</enum>
               </property>
               <item>
                <property name="text">
