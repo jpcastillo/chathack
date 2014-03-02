@@ -11,3 +11,12 @@
 *.lai
 *.la
 *.a
+
+# Qt stuff
+*.user
+
+# My Notes
+*.txt
+
+# MySQL stuff
+*.sql
