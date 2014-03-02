@@ -1,13 +1,22 @@
 #ifndef WORKER_H
 #define WORKER_H
 
+#include <QNetworkAccessManager>
 #include <QTcpServer>
 #include <QThread>
 #include <QMutex>
 #include "logwriter.h"
 
-
 class QTcpSocket;
+
+// QNetworkAccessManager
+#include <QNetworkAccessManager>
+#include <QUrl>
+
+QT_BEGIN_NAMESPACE
+class QAuthenticator;
+class QNetworkReply;
+QT_END_NAMESPACE
 
 class Worker : public QObject
 {
@@ -17,6 +26,7 @@ public:
     ~Worker();
 
     void startRun();
+    void HttpFinish(QNetworkReply *rpy);
 
     static QMutex mutex;
 
@@ -33,16 +43,24 @@ private:
     QStringList myCmds;
     qintptr socketFd; // server socket file descriptor
     QThread *self;
+    //QNetworkAccessManager *mgr;
     int uuid;
+    //QString url_base;
 
 private slots:
     void onReadyRead();
     void onDisconnect();
     void run();
+    void onHttpFinish(QNetworkReply *rpy);
 
 signals:
+
+    void TryHttpFinish(QNetworkReply *rpy);
     void shouldRun();
     void clientDisconnect(QThread *);
+    void netRequest(QString);
+
+    friend class Server;
 };
 
 #endif // WORKER_H

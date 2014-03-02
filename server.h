@@ -9,6 +9,15 @@
 
 class QTcpSocket;
 
+// QNetworkAccessManager
+#include <QNetworkAccessManager>
+#include <QUrl>
+
+QT_BEGIN_NAMESPACE
+class QAuthenticator;
+class QNetworkReply;
+QT_END_NAMESPACE
+
 using namespace std;
 
 #define MAX_CONNECTS 10
@@ -28,12 +37,18 @@ class Server : public QTcpServer
         QTcpSocket *socket;
         LogWriter log;
         QHash<QThread *,Worker *> workers;
+        QNetworkAccessManager *mgr;
+        QString url_base;
 
     protected:
         virtual void incomingConnection(qintptr handle);
 
     private slots:
         void onDisconnect(QThread *t);
+        void runRequest(QString qryString);
+        void onHttpFinish(QNetworkReply *rpy);
+private:
+        Worker * lastWorker;
 };
 
 #endif
