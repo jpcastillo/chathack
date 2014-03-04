@@ -14,17 +14,14 @@ Worker::Worker(qintptr socketDescriptor, QObject *parent, QThread *_self, QTcpSo
 {
     myCmds << "slogin" << "clogin" << "sjoin" << "cjoin" << "sleave"
                << "cleave" << "slogout" << "clogout" << "sexit" << "cexit"
-               << "sulroom" << "culroom" << "ssmroom" << "csmroom" << "crecvmsg";
+               << "sulroom" << "culroom" << "ssmroom" << "csmroom" << "crecvmsg"
+               << "suuid" << "cuuid";
     connect(this,SIGNAL(shouldRun()),this,SLOT(run()));
-    connect(this,SIGNAL(TryHttpFinish(QNetworkReply*)),this,SLOT(onHttpFinish(QNetworkReply*)));
     uuid = -1;
-    //mgr = new QNetworkAccessManager();
-    //url_base = "http://192.168.62.193/chathack/?";
 }
 
 Worker::~Worker()
 {
-    //qDebug() << "destroyed";
     mutex.lock();
     log.log("Worker: I just died.\n");
     mutex.unlock();
@@ -35,14 +32,8 @@ void Worker::startRun()
     emit shouldRun();
 }
 
-void Worker::HttpFinish(QNetworkReply *rpy)
-{
-    emit TryHttpFinish(rpy);
-}
-
 void Worker::run()
 {
-    //qDebug() << "void Worker::run()";
     client = new QTcpSocket();
     if (!client->setSocketDescriptor(socketFd))
     {
@@ -52,89 +43,62 @@ void Worker::run()
         return;
     }
 
+    //qDebug() << "Worker: client address is " << client->peerAddress();
+
     connect(self,SIGNAL(finished()),client,SLOT(deleteLater()));
     connect(client,SIGNAL(readyRead()),this,SLOT(onReadyRead()));
     connect(client,SIGNAL(disconnected()),this,SLOT(onDisconnect()));
 
-
-    //connect(mgr,SIGNAL(finished(QNetworkReply*)),this,SLOT(onHttpFinish(QNetworkReply*)));
-    //connect(self,SIGNAL(finished()),mgr,SLOT(deleteLater()));
-
-
     mutex.lock();
     log.log("Worker: Worker thread spawned successfully.\n");
     mutex.unlock();
-
-    //client->waitForDisconnected();
-}
-
-
-bool Worker::setup() // initial server setup
-{
-    return false;
 }
 
 bool Worker::processRequest(QString cmd) // will spawn a thread to handle client request
 {
-    //a  "sjoin"  b  "sjoin"
-    //slogin|channel|type|slogin
     QStringList args(parse(cmd));
     QString qryString;
-    //qDebug() << "size " << args.size();
     if(args.size() == 0)
         return false;
-    //qDebug() << "a " << args[0] << " b "<< args[args.size()-1];
     if(args[0] != args[args.size()-1])
         return false;
     int cntrl = myCmds.indexOf(args[0]);
-    //mgr->get(QNetworkRequest(QUrl(url_base+qryString)));
     switch (cntrl)
     {
     case 0:
-        //clogin
-        //slogin|room|username|slogin
+        //slogin|room|username|type|slogin
         //clogin|room|uuid|status|clogin
-        qryString = QString("cmd=slogin&c="+args[1]+"&u1=&u2="+args[2]+"&t=&m=");
+        qryString = QString("cmd=slogin&c="+args[1]+"&u1=&u2="+args[2]+"&t="+args[3]+"&m=");
         emit netRequest(qryString);
         //mgr->get( QNetworkRequest(QUrl(url_base+qryString)) );
         //write_c(QString(myCmds[cntrl+1]+"|hack|28|0|"+myCmds[cntrl+1]+"\n"));
         break;
     case 2:
-        //cjoin
         //sjoin|uuid|channel|type|sjoin
         //cjoin|channel|status|cjoin
         qryString = QString("cmd=sjoin&c="+args[2]+"&u1="+args[1]+"&u2=&t="+args[3]+"&m=");
-        //mgr->get( QNetworkRequest(QUrl(url_base+qryString)) );
-        write_c(QString(myCmds[cntrl+1]+"|hack|0|"+myCmds[cntrl+1]+"\n"));
+        emit netRequest(qryString);
         break;
     case 4:
-        //cleave
         //cleave|channel|status|cleave
         //sleave|uuid|channel|type|sleave
         qryString = QString("cmd=sleave&c="+args[2]+"&u1="+args[1]+"&u2=&t="+args[3]+"&m=");
-        //mgr->get( QNetworkRequest(QUrl(url_base+qryString)) );
-        write_c(QString(myCmds[cntrl+1]+"|hack|0|"+myCmds[cntrl+1]+"\n"));
+        emit netRequest(qryString);
         break;
     case 6:
-        //clogout
         //clogout|status|clogout
         qryString = QString("cmd=slogout&c=&u1="+args[1]+"&u2=&t=&m=");
-        //mgr->get( QNetworkRequest(QUrl(url_base+qryString)) );
-        write_c(QString(myCmds[cntrl+1]+"|0|"+myCmds[cntrl+1]+"\n"));
+        emit netRequest(qryString);
         break;
     case 8:
-        //cexit
         //cexit|status|cexit
         qryString = QString("cmd=sexit&c=&u1="+args[1]+"&u2=&t=&m=");
-        //mgr->get( QNetworkRequest(QUrl(url_base+qryString)) );
-        write_c(QString(myCmds[cntrl+1]+"|0|"+myCmds[cntrl+1]+"\n"));
+        emit netRequest(qryString);
         break;
     case 10:
-        //culroom
         //culroom|<comma delimited list of users>|culroom
         qryString = QString("cmd=sulroom&c="+args[1]+"&u1=&u2=&t=&m=");
-        //mgr->get( QNetworkRequest(QUrl(url_base+qryString)) );
-        write_c(QString(myCmds[cntrl+1]+"|john,brian|"+myCmds[cntrl+1]+"\n"));
+        emit netRequest(qryString);
         break;
     case 12:
         //csmroom
@@ -148,6 +112,17 @@ bool Worker::processRequest(QString cmd) // will spawn a thread to handle client
         qryString = QString("cmd=srecvmsg&r="+args[1]+"&u1="+args[1]+"&u2=&c=&t=&m=");
         //mgr->get( QNetworkRequest(QUrl(url_base+qryString)) );
         write_c(QString(myCmds[cntrl+2]+"|hack|dan|"+args[4]+"|"+myCmds[cntrl+2]+"\n"));
+        break;
+    case 15:
+        if(args[1].length() > 0)
+        {
+            uuid = atoi(args[1].toStdString().c_str());
+            write_c(QString(myCmds[cntrl+1]+"|0|"+myCmds[cntrl+1]+"\n"));
+        }
+        else
+        {
+            write_c(QString(myCmds[cntrl+1]+"|1|"+myCmds[cntrl+1]+"\n"));
+        }
         break;
     default:
         write_c(QString("Hello, client. Idk wtf you want.\n"));
@@ -202,16 +177,21 @@ void Worker::read()
     }
 }
 
-
 bool Worker::write_c(QString msg)
 {
     mutex.lock();
-    log.log("Worker: Writing response to client.\n");
+    log.log("Worker: Started writing response to client.\n");
     mutex.unlock();
     QString tmp(msg);
     int msgLen = tmp.length();
     tmp[msgLen] = '\n';
-    return client->write(tmp.toStdString().c_str()) != -1;
+    if(client->write(tmp.toStdString().c_str()) != -1)
+    {
+        log.log("Worker: Finished writing response to client.\n");
+        return true;
+    }
+    log.log("Worker: Failed to write response to client.\n");
+    return false;
 }
 
 QStringList Worker::parse(QString cmd)
@@ -229,11 +209,15 @@ void Worker::onDisconnect()
     emit clientDisconnect(self);
 }
 
-
 void Worker::onHttpFinish(QNetworkReply *rply)
 {
     QByteArray bts = rply->readAll();
     QString str(bts);
-    //qDebug() << str;
+    rply->deleteLater();
     write_c(str);
+}
+
+bool Worker::isOpen()
+{
+    return client->isOpen();
 }

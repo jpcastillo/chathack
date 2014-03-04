@@ -22,6 +22,8 @@ using namespace std;
 
 #define MAX_CONNECTS 10
 
+//client->peerAddress()
+
 
 class Server : public QTcpServer
 {
@@ -39,6 +41,9 @@ class Server : public QTcpServer
         QHash<QThread *,Worker *> workers;
         QNetworkAccessManager *mgr;
         QString url_base;
+
+    signals:
+        void onHttpFinishWorker(QNetworkReply *);
 
     protected:
         virtual void incomingConnection(qintptr handle);

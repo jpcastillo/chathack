@@ -20,3 +20,6 @@
 
 # MySQL stuff
 *.sql
+
+# Database stuff
+database*

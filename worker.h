@@ -26,12 +26,12 @@ public:
     ~Worker();
 
     void startRun();
-    void HttpFinish(QNetworkReply *rpy);
+    bool isOpen();
+    //void HttpFinish(QNetworkReply *rpy);
 
     static QMutex mutex;
 
 private:
-    bool setup(); // initial server setup
     bool processRequest(QString cmd); // will spawn a thread to handle client request
     void read();
     bool write_c(QString msg);
@@ -43,9 +43,7 @@ private:
     QStringList myCmds;
     qintptr socketFd; // server socket file descriptor
     QThread *self;
-    //QNetworkAccessManager *mgr;
     int uuid;
-    //QString url_base;
 
 private slots:
     void onReadyRead();
@@ -54,8 +52,6 @@ private slots:
     void onHttpFinish(QNetworkReply *rpy);
 
 signals:
-
-    void TryHttpFinish(QNetworkReply *rpy);
     void shouldRun();
     void clientDisconnect(QThread *);
     void netRequest(QString);
