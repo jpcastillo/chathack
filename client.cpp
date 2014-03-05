@@ -7,7 +7,7 @@
 #include <QWidget>
 #include <QApplication>
 
-const QHostAddress DEFAULT_HOST("169.235.31.253");
+const QHostAddress DEFAULT_HOST("192.168.1.135");//"169.235.31.253");
 const quint16 DEFAULT_PORT = 6501;
 const quint16 BLOCK_SIZE = 1;
 int NUM_ARGS[NUM_COMMANDS];
@@ -27,6 +27,7 @@ Client::Client(QObject *parent) :
     NUM_ARGS[CRECVMSG] = 5;
     NUM_ARGS[INVALID] = -1;
     NUM_ARGS[INCOMPLETE] = -1;
+    NUM_ARGS[CUUID] = 1;
 
     tcpSocket = new QTcpSocket(this);
     blockSize = BLOCK_SIZE;
@@ -50,7 +51,7 @@ void Client::handleConnection()
 //    qDebug() << msg << "";
 //    tcpSocket -> write(msg.toStdString().c_str());
 
-    QString serverMessage("slogin|%1|%2|slogin\n");
+    QString serverMessage("slogin|%1|%2|0|slogin\n");
     tcpSocket->write(serverMessage.arg(roomName,userName).toStdString().c_str());
 }
 
@@ -58,9 +59,17 @@ void Client::handleConnection()
 void Client::slogin(QString userName, QString roomName)
 {
     qDebug() << "STARTING LOGIN!";
-    tcpSocket -> connectToHost(DEFAULT_HOST, DEFAULT_PORT);
+
     this->roomName = roomName;
     this->userName = userName;
+    if(tcpSocket->state() != QAbstractSocket::ConnectedState){
+        qDebug() << "Connecting to server...";
+        tcpSocket -> connectToHost(DEFAULT_HOST, DEFAULT_PORT);
+    }
+    else
+    {
+        handleConnection();
+    }
 
 //    QString msg("slogin|" + Rname+ '|' + Cname + "|slogin\n");
 //    qDebug() << msg << "";
@@ -128,6 +137,7 @@ void Client::slogout()
 {
     QString serverMessage("slogout|%1|slogout\n");
     tcpSocket->write(serverMessage.arg(uuid).toStdString().c_str());
+    tcpSocket->waitForReadyRead();
     tcpSocket -> disconnectFromHost();
     if(!tcpSocket -> waitForDisconnected())
     {
@@ -164,80 +174,82 @@ void Client::ReadSocket()
         return;
     }*/
 
-    int bytesRead;
-
-    char nextRead[81];
-    qDebug() << "BEFORE";
-    bytesRead = in.readRawData(nextRead, 80);
-    if(bytesRead == -1)
+    while(tcpSocket->bytesAvailable())
     {
-        nextRead[0] = 0;
-    }
-    else
-    {
-        nextRead[bytesRead-1] = 0;
-    }
-    qDebug() << "AFTER";
-    QString temp(nextRead);
-    qDebug() << "Temp: " << temp;
-    messageSoFar += temp;
-    qDebug() << "messageSoFar: " << messageSoFar;
-    QStringList commandList = messageSoFar.split("\n",QString::SkipEmptyParts);
+        int bytesRead;
 
-    QString tmp;
-    foreach(QString command, commandList)
-    {
-        qDebug() << "Command " << command;
-        ServerCommand comm = getMsgStatus(command);
-        if(comm != INCOMPLETE && NUM_ARGS[comm] != cur_args.size())
+        char nextRead[82];
+        qDebug() << "BEFORE";
+        bytesRead = in.readRawData(nextRead, 80);
+        if(bytesRead == -1)
+            nextRead[0] = 0;
+        else
+            nextRead[bytesRead] = 0;
+        qDebug() << QString("ReadSocket %1").arg(bytesRead);
+        qDebug() << "AFTER";
+        QString temp(nextRead);
+        qDebug() << "Temp: " << temp;
+        messageSoFar += temp;
+        qDebug() << "messageSoFar: " << messageSoFar;
+        QStringList commandList = messageSoFar.split("\n",QString::SkipEmptyParts);
+
+        QString tmp;
+        foreach(QString command, commandList)
         {
-            invalidMessage();
-            continue;
-        }
-        switch(comm)
-        {
-        case CLOGIN:
-            clogin();
-            break;
-        case CLOGOUT:
-            clogout();
-            break;
-        case CJOIN:
-            cjoin();
-            break;
-        case CLEAVE:
-            cleave();
-            break;
-        case CEXIT:
-            cexit();
-            break;
-        case CSMROOM:
-            csmroom();
-            break;
-        case CRECVMSG:
-            crecvmsg();
-            break;
-        case CULROOM:
-            culroom();
-            break;
-        case INVALID:
-            invalidMessage();
-            break;
-        case INCOMPLETE: //do nothing, wait for the rest of the message
-            break;
-        default: break;
-            unknownMessage();
-        }
+            qDebug() << "Command " << command;
+            ServerCommand comm = getMsgStatus(command);
+            if(comm != INCOMPLETE && NUM_ARGS[comm] != cur_args.size())
+            {
+                invalidMessage();
+                continue;
+            }
+            switch(comm)
+            {
+            case CLOGIN:
+                clogin();
+                break;
+            case CLOGOUT:
+                clogout();
+                break;
+            case CJOIN:
+                cjoin();
+                break;
+            case CLEAVE:
+                cleave();
+                break;
+            case CEXIT:
+                cexit();
+                break;
+            case CSMROOM:
+                csmroom();
+                break;
+            case CRECVMSG:
+                crecvmsg();
+                break;
+            case CULROOM:
+                culroom();
+                break;
+            case CUUID:
+                cuuid();
+            case INVALID:
+                invalidMessage();
+                break;
+            case INCOMPLETE: //do nothing, wait for the rest of the message
+                break;
+            default: break;
+                unknownMessage();
+            }
 
-        if(comm != INCOMPLETE && comm != INVALID)
-        {
-            command = "";
+            if(comm != INCOMPLETE && comm != INVALID)
+            {
+                command = "";
+            }
+            tmp += command;
+
         }
-        tmp += command;
+        messageSoFar = tmp;
 
     }
-    messageSoFar = tmp;
-
     qDebug() << "Done ReadSocket";
 }
 
@@ -300,6 +312,12 @@ void Client::sulroom(QString room)
     tcpSocket->write(serverMessage.arg(room).toStdString().c_str());
 }
 
+void Client::suuid(int uuid)
+{
+    QString serverMessage("suuid|%1|suuid\n");
+    tcpSocket->write(serverMessage.arg(uuid).toStdString().c_str());
+}
+
 ServerCommand Client::getMsgStatus(QString message)
 {
     cur_args = message.split("|");
@@ -329,6 +347,8 @@ ServerCommand Client::getCommand(QString command)
         return CSMROOM;
     if(command == "crecvmsg")
         return CRECVMSG;
+    if(command == "cuuid")
+        return CUUID;
     return INVALID;
 }
 
@@ -350,6 +370,8 @@ void Client::clogin()
     case StatusType::STATUS_SUCCESS:
         this->roomName = room;
         emit loginSuccess(room);
+        suuid(this->uuid);
+        tcpSocket->waitForBytesWritten();
         sulroom(room);
         break;
     case StatusType::STATUS_FAILURE:
@@ -378,14 +400,17 @@ void Client::cjoin()
     qDebug() << "RUNNING CJOIN";
 
     QString status = cur_args[2];
+    QString room = cur_args[1];
     switch(StatusType::getStatus(status))
     {
     case StatusType::STATUS_SUCCESS:
-        this->roomName = cur_args[1];
-        emit join(cur_args[1]);
+        this->roomName = room;
+        emit join(room);
+        sulroom(room);
         break;
     case StatusType::STATUS_FAILURE:
     case StatusType::STATUS_UST:
+        emit userNameTaken(QString("%1 @ %2").arg(this->userName,this->roomName));
     case StatusType::PASSWORD_REQ:
     case StatusType::BAD_UUID:
     case StatusType::UNKNOWN:
@@ -450,7 +475,17 @@ void Client::crecvmsg()
 void Client::culroom()
 {
     qDebug() << "RUNNING CULROOM";
-    emit usersListRoom(cur_args[1].split(","));
+    QString reply = cur_args[1];
+    if(reply.toInt() == -1)
+        emit userListFailed();
+    else
+        emit usersListRoom(reply.split(","));
+
+}
+
+void Client::cuuid()
+{
+    qDebug() << "RUNNING CUUID";
 
 }
 

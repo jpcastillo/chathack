@@ -33,6 +33,8 @@ public slots:
     void joinRoom(QString room);
     void leaveRoom(QString room);
     void usersListRoom(QStringList users);
+    void userNameTaken(QString user);
+    void userListFailed();
 
 signals:
     void tryClose();

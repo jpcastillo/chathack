@@ -4,6 +4,8 @@
 #include <QDebug>
 #include <QScrollBar>
 #include <QInputDialog>
+#include <QMessageBox>
+#include <QListWidgetItem>
 #include "program.cc"
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -55,6 +57,8 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(c,SIGNAL(die()),this,SLOT(close()));
     connect(c,SIGNAL(leave(QString)),this,SLOT(leaveRoom(QString)));
     connect(c,SIGNAL(usersListRoom(QStringList)),this,SLOT(usersListRoom(QStringList)));
+    connect(c,SIGNAL(userNameTaken(QString)),this,SLOT(userNameTaken(QString)));
+    connect(c,SIGNAL(userListFailed()),this,SLOT(userListFailed()));
 
     connect(this,SIGNAL(badLogin(QString)),this,SLOT(displayLoginError(QString)));
     c->moveToThread(workerThread);
@@ -80,7 +84,7 @@ void MainWindow::closeButton()
 
 void MainWindow::loginButton()
 {
-    static QRegExp validName("([0-9a-zA-Z])+");
+    static QRegExp validName("([0-9a-zA-Z]){1,30}");
     QString roomName(ui->roomNameLine->text()), username(ui->usernameLine->text());
     if(!validName.exactMatch(roomName))
     {
@@ -114,7 +118,9 @@ void MainWindow::joinButton()
 
 void MainWindow::leaveButton()
 {
-    emit tryLeave(c->roomName,"0");
+    QList<QListWidgetItem*> selected = ui->roomsListWidget->selectedItems();
+    if(selected.size())
+        emit tryLeave(selected[0]->text(),"0");
 }
 
 void MainWindow::emailButton()
@@ -220,6 +226,7 @@ void MainWindow::setRoom(QString room)
     }
 
     ui->textBrowser->setHtml(this->roomText[room]);
+    c->roomName = room;
 
 }
 
@@ -236,7 +243,7 @@ void MainWindow::displayLoginError(QString msg)
 
 void MainWindow::login(QString room)
 {
-    ui->usernameLine->clear();
+    //ui->usernameLine->clear();
     ui->roomNameLine->clear();
     showLoggedInStuff();
     ui->stackedWidget->setCurrentWidget(ui->chatPage);
@@ -248,6 +255,7 @@ void MainWindow::login(QString room)
 void MainWindow::logout()
 {
     hideLoggedInStuff();
+    ui->roomNameLine->setFocus();
     ui->stackedWidget->setCurrentWidget(ui->loginPage);
 }
 
@@ -315,4 +323,14 @@ void MainWindow::usersListRoom(QStringList users)
     qDebug() << "void MainWindow::usersListRoom(QStringList users)";
     this->users[c->roomName] = users;
     setRoom(c->roomName);
+}
+
+void MainWindow::userNameTaken(QString user)
+{
+    QMessageBox::warning(this,"User Exists!", QString("User \"%1\" already exists!").arg(user));
+}
+
+void MainWindow::userListFailed()
+{
+    QMessageBox::warning(this,"No User List","Retrieving the user list for this room failed!");
 }

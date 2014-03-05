@@ -5,7 +5,7 @@
 #include <QtNetwork>
 #include "statustype.h"
 
-enum ServerCommand{CLOGIN, CJOIN, CLEAVE, CLOGOUT, CEXIT, CULROOM, CSMROOM, CRECVMSG, INCOMPLETE, INVALID, NUM_COMMANDS};
+enum ServerCommand{CLOGIN, CJOIN, CLEAVE, CLOGOUT, CEXIT, CULROOM, CSMROOM, CRECVMSG, CUUID, INCOMPLETE, INVALID, NUM_COMMANDS};
 
 class Client : public QObject
 {
@@ -23,6 +23,8 @@ signals:
     void die();
     void leave(QString);
     void usersListRoom(QStringList);
+    void userNameTaken(QString);
+    void userListFailed();
 
    // void LoginFailure();
    // void ForcedDisconnect();
@@ -43,6 +45,7 @@ public slots:
     void sleave(QString channel, QString type);
     void ssmroom(QString room, QString type, QString message);
     void sulroom(QString room);
+    void suuid(int uuid);
 
 private:
 
@@ -58,6 +61,7 @@ private:
     void csmroom();
     void crecvmsg();
     void culroom();
+    void cuuid();
     void invalidMessage();
     void unknownMessage();
 
