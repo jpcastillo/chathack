@@ -371,8 +371,6 @@ void Client::clogin()
         this->roomName = room;
         emit loginSuccess(room);
         suuid(this->uuid);
-        tcpSocket->waitForBytesWritten();
-        sulroom(room);
         break;
     case StatusType::STATUS_FAILURE:
     case StatusType::STATUS_UST:
@@ -486,6 +484,20 @@ void Client::culroom()
 void Client::cuuid()
 {
     qDebug() << "RUNNING CUUID";
+    QString status = cur_args[1];
+    switch(StatusType::getStatus(status))
+    {
+    case StatusType::STATUS_SUCCESS:
+        sulroom(room);
+        break;
+    case StatusType::STATUS_FAILURE:
+    case StatusType::STATUS_UST:
+    case StatusType::PASSWORD_REQ:
+    case StatusType::BAD_UUID:
+    case StatusType::UNKNOWN:
+    default:
+        break;
+    }
 
 }
 
