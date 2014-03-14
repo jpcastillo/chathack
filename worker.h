@@ -9,7 +9,6 @@
 
 class QTcpSocket;
 
-// QNetworkAccessManager
 #include <QNetworkAccessManager>
 #include <QUrl>
 
@@ -22,19 +21,22 @@ class Worker : public QObject
 {
 Q_OBJECT
 public:
-    Worker(qintptr socketDescriptor, QObject *parent, QThread *_self, QTcpSocket *_client, QTcpServer *_server);
+    Worker(qintptr socketDescriptor, QObject *parent, QThread *_self, QTcpSocket *_client, QTcpServer *_server, QHash<QThread *, Worker *> *_workers);
     ~Worker();
 
     void startRun();
     bool isOpen();
+    QString getUuid();
+    QTcpSocket* getClientSocket();
     //void HttpFinish(QNetworkReply *rpy);
 
     static QMutex mutex;
 
 private:
     bool processRequest(QString cmd); // will spawn a thread to handle client request
+    void messageClients(QStringList users, QString msg);
     void read();
-    bool write_c(QString msg);
+    bool write_c(QString msg, QTcpSocket *sfd);
     QStringList parse(QString cmd);
     QTcpServer *server;
     QTcpSocket *client;
@@ -43,7 +45,8 @@ private:
     QStringList myCmds;
     qintptr socketFd; // server socket file descriptor
     QThread *self;
-    int uuid;
+    QString uuid;
+    QHash<QThread *,Worker *> *workers;
 
 private slots:
     void onReadyRead();

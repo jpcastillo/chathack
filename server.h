@@ -9,7 +9,6 @@
 
 class QTcpSocket;
 
-// QNetworkAccessManager
 #include <QNetworkAccessManager>
 #include <QUrl>
 
@@ -38,9 +37,10 @@ class Server : public QTcpServer
         quint16 svrPort; // server port to listen on
         QTcpSocket *socket;
         LogWriter log;
-        QHash<QThread *,Worker *> workers;
-        QNetworkAccessManager *mgr;
+        QHash<QThread *,Worker *> *workers;
+        QNetworkAccessManager *mgr, *svr_mgr;
         QString url_base;
+        //QList<QTcpSocket*> getClientSockets(QList<QString> users);
 
     signals:
         void onHttpFinishWorker(QNetworkReply *);
@@ -52,8 +52,19 @@ class Server : public QTcpServer
         void onDisconnect(QThread *t);
         void runRequest(QString qryString);
         void onHttpFinish(QNetworkReply *rpy);
+        void onSvrHttpFinish(QNetworkReply *rpy);
 private:
         Worker * lastWorker;
 };
 
+/*
+ * how to handle msg broadcast:
+ * worker does net request to server for list of users in channel (uuids)
+ * worker sends list of uuids to server --x
+ * server searches hash for match of each uuid and pushes client socket onto list --x
+ * server sends back worker a list of client sockets --x
+ * worker searches hash for math of each uuid and pushes client socket onto list
+ * worker writes message to each socket in list
+ *
+*/
 #endif

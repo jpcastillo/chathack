@@ -4,10 +4,11 @@
 #include <QMutexLocker>
 #include <QDebug>
 #include <QtNetwork>
+#include <stdlib.h>
 
 QMutex Worker::mutex;
 
-Worker::Worker(qintptr socketDescriptor, QObject *parent, QThread *_self, QTcpSocket *_client, QTcpServer *_server) :
+Worker::Worker(qintptr socketDescriptor, QObject *parent, QThread *_self, QTcpSocket *_client, QTcpServer *_server, QHash<QThread *, Worker *> *_workers) :
     QObject(parent), socketFd(socketDescriptor),
     log("chathack_workerdaemon.log"), self(_self), client(_client),
     server(_server)
@@ -17,6 +18,7 @@ Worker::Worker(qintptr socketDescriptor, QObject *parent, QThread *_self, QTcpSo
                << "sulroom" << "culroom" << "ssmroom" << "csmroom" << "crecvmsg"
                << "suuid" << "cuuid";
     connect(this,SIGNAL(shouldRun()),this,SLOT(run()));
+    workers = _workers;
     uuid = -1;
 }
 
@@ -101,31 +103,33 @@ bool Worker::processRequest(QString cmd) // will spawn a thread to handle client
         emit netRequest(qryString);
         break;
     case 12:
-        //csmroom
-        //csmroom|room|status|csmroom
-        //ssmroom|uuid|room|type|message (must escape vbar)|ssmroom
-        qryString = QString("cmd=ssmroom&c="+args[2]+"&u1="+args[1]+"&u2=&t="+args[3]+"&m="+args[4]);
-        //mgr->get( QNetworkRequest(QUrl(url_base+qryString)) );
-        write_c(QString(myCmds[cntrl+1]+"|hack|0|"+myCmds[cntrl+1]+"\n"));
-        //crecvmsg
-        //crecvmsg|room|user|message|crecvmsg
+        //ssmroom|uuid|room|type|message (must escape vbar)|ssmroom --12
+        //csmroom|room|status|csmroom --13
+        qryString = QString("cmd=suidlroom&c="+args[2]+"&u1="+args[1]+"&u2=&t="+args[3]+"&m="+args[4]);
+        emit netRequest(qryString);
+        /*write_c(QString(myCmds[cntrl+1]+"|hack|0|"+myCmds[cntrl+1]+"\n"),client);*/
+
+        //crecvmsg|room|user|message|crecvmsg --14
         qryString = QString("cmd=srecvmsg&r="+args[1]+"&u1="+args[1]+"&u2=&c=&t=&m=");
-        //mgr->get( QNetworkRequest(QUrl(url_base+qryString)) );
-        write_c(QString(myCmds[cntrl+2]+"|hack|dan|"+args[4]+"|"+myCmds[cntrl+2]+"\n"));
+        /*write_c(QString(myCmds[cntrl+2]+"|hack|dan|"+args[4]+"|"+myCmds[cntrl+2]+"\n"),client);*/
         break;
     case 15:
         if(args[1].length() > 0)
         {
-            uuid = atoi(args[1].toStdString().c_str());
-            write_c(QString(myCmds[cntrl+1]+"|0|"+myCmds[cntrl+1]+"\n"));
+            QString uuidStr = args[1].simplified();
+            uuidStr.replace( " ", "" );
+            //uuid = atoi(uuidStr.toStdString().c_str());
+            uuid = uuidStr;
+            qDebug() << "uuid is: " << uuid;
+            write_c(QString(myCmds[cntrl+1]+"|0|"+myCmds[cntrl+1]+"\n"),client);
         }
         else
         {
-            write_c(QString(myCmds[cntrl+1]+"|1|"+myCmds[cntrl+1]+"\n"));
+            write_c(QString(myCmds[cntrl+1]+"|1|"+myCmds[cntrl+1]+"\n"),client);
         }
         break;
     default:
-        write_c(QString("Hello, client. Idk wtf you want.\n"));
+        write_c(QString("Hello, client. Idk wtf you want.\n"),client);
         break;
     }
 
@@ -177,7 +181,7 @@ void Worker::read()
     }
 }
 
-bool Worker::write_c(QString msg)
+bool Worker::write_c(QString msg, QTcpSocket *sfd)
 {
     mutex.lock();
     log.log("Worker: Started writing response to client.\n");
@@ -185,9 +189,9 @@ bool Worker::write_c(QString msg)
     QString tmp(msg);
     int msgLen = tmp.length();
     tmp[msgLen] = '\n';
-    if(client->write(tmp.toStdString().c_str()) != -1)
+    if(sfd->write(tmp.toStdString().c_str()) != -1 && sfd->waitForBytesWritten(50))
     {
-        log.log("Worker: Finished writing response to client.\n");
+        log.log("Worker: Finished writing `"+msg.toLocal8Bit()+"` to client.\n");
         return true;
     }
     log.log("Worker: Failed to write response to client.\n");
@@ -214,10 +218,58 @@ void Worker::onHttpFinish(QNetworkReply *rply)
     QByteArray bts = rply->readAll();
     QString str(bts);
     rply->deleteLater();
-    write_c(str);
+
+    /* must handle message broadcast replies differently */
+    QStringList reply = parse(str);
+    if(reply.size()==6 && reply[0]=="cuidlroom")
+    {
+        // convert comma delimited uuid into QList<QString>
+        QStringList users = reply[1].split(",");
+        // write response message to caller
+        write_c(QString("csmroom|"+reply[3]+"|0|csmroom"),client);
+        // write receive messages to callees
+        messageClients(users,QString("crecvmsg|"+reply[3]+"|"+reply[4]+"|"+reply[2]+"|crecvmsg"));
+    }
+    else
+    {
+        write_c(str,client);
+    }
 }
 
 bool Worker::isOpen()
 {
     return client->isOpen();
+}
+
+QString Worker::getUuid()
+{
+    return uuid;
+}
+
+QTcpSocket* Worker::getClientSocket()
+{
+    return client;
+}
+
+void Worker::messageClients(QStringList users, QString msg) // 03/14/14 should look over.
+{
+    qDebug() << "Users size is " << users.size() << " , " << users;
+    qDebug() << "Workers size is " << workers->size();
+    QHash<QThread*, Worker *>::const_iterator it = workers->constBegin();
+    for (int i = 0; i < users.size(); i++)
+    {
+        while (it != workers->constEnd())
+        {
+            if(it.value()->getUuid() == users.at(i))
+            {
+                // it.key(); it.value();
+                qDebug() << "Match found!";
+                if(it.value()->getClientSocket()->isOpen())
+                {
+                    write_c(msg,it.value()->getClientSocket());
+                }
+            }
+            it++;
+        }
+    }
 }
