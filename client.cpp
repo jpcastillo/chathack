@@ -27,7 +27,7 @@ Client::Client(QObject *parent) :
     NUM_ARGS[CRECVMSG] = 5;
     NUM_ARGS[INVALID] = -1;
     NUM_ARGS[INCOMPLETE] = -1;
-    NUM_ARGS[CUUID] = 1;
+    NUM_ARGS[CUUID] = 3;
 
     tcpSocket = new QTcpSocket(this);
     blockSize = BLOCK_SIZE;
@@ -231,6 +231,7 @@ void Client::ReadSocket()
                 break;
             case CUUID:
                 cuuid();
+                break;
             case INVALID:
                 invalidMessage();
                 break;
@@ -468,6 +469,7 @@ void Client::crecvmsg()
 {
     qDebug() << "RUNNING CRECVMSG";
     emit recievedText(cur_args[1],cur_args[2],cur_args[3]);
+    qDebug() << "EXITING CRECVMSG";
 }
 
 void Client::culroom()
@@ -488,7 +490,7 @@ void Client::cuuid()
     switch(StatusType::getStatus(status))
     {
     case StatusType::STATUS_SUCCESS:
-        sulroom(room);
+        sulroom(this->roomName);
         break;
     case StatusType::STATUS_FAILURE:
     case StatusType::STATUS_UST:

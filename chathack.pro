@@ -26,7 +26,7 @@ FORMS    += mainwindow.ui
 RESOURCES += \
     resources.qrc
 
-RC_FILE = chathack.rc
+#RC_FILE = chathack.rc
 
 OTHER_FILES += \
     send2grid.py
