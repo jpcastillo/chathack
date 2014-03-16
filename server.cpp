@@ -5,13 +5,13 @@
 #include <QtNetwork>
 
 Server::Server(QObject* parent) :
-    QTcpServer(parent), log("chathack_daemon.log")
+    QTcpServer(parent), log("server_daemon.log")
 {
     svrPort = 6501;
     mgr = new QNetworkAccessManager();
     svr_mgr = new QNetworkAccessManager();
     workers = new QHash<QThread *,Worker *>();
-    url_base = "http://192.168.62.202/chathack/?";
+    url_base = "http://192.168.62.203/chathack/?";
     connect(mgr,SIGNAL(finished(QNetworkReply*)),this,SLOT(onHttpFinish(QNetworkReply*)));
     connect(svr_mgr,SIGNAL(finished(QNetworkReply*)),this,SLOT(onSvrHttpFinish(QNetworkReply*)));
 }

@@ -10,7 +10,7 @@ QMutex Worker::mutex;
 
 Worker::Worker(qintptr socketDescriptor, QObject *parent, QThread *_self, QTcpSocket *_client, QTcpServer *_server, QHash<QThread *, Worker *> *_workers) :
     QObject(parent), socketFd(socketDescriptor),
-    log("chathack_workerdaemon.log"), self(_self), client(_client),
+    log("worker_daemon.log"), self(_self), client(_client),
     server(_server)
 {
     myCmds << "slogin" << "clogin" << "sjoin" << "cjoin" << "sleave"
@@ -258,8 +258,11 @@ void Worker::messageClients(QStringList users, QString msg) // 03/14/14 should l
     QHash<QThread*, Worker *>::const_iterator it = workers->constBegin();
     for (int i = 0; i < users.size(); i++)
     {
+        qDebug() << "Users index: " << i;
+        qDebug() << "Users.at(index): " << users.at(i);
         while (it != workers->constEnd())
         {
+            qDebug() << "Worker UUID: " << it.value()->getUuid();
             if(it.value()->getUuid() == users.at(i))
             {
                 // it.key(); it.value();
@@ -271,5 +274,6 @@ void Worker::messageClients(QStringList users, QString msg) // 03/14/14 should l
             }
             it++;
         }
+        it = workers->constBegin();
     }
 }
