@@ -45,8 +45,6 @@ void Worker::run()
         return;
     }
 
-    //qDebug() << "Worker: client address is " << client->peerAddress();
-
     connect(self,SIGNAL(finished()),client,SLOT(deleteLater()));
     connect(client,SIGNAL(readyRead()),this,SLOT(onReadyRead()));
     connect(client,SIGNAL(disconnected()),this,SLOT(onDisconnect()));
@@ -72,8 +70,6 @@ bool Worker::processRequest(QString cmd) // will spawn a thread to handle client
         //clogin|room|uuid|status|clogin
         qryString = QString("cmd=slogin&c="+args[1]+"&u1=&u2="+args[2]+"&t="+args[3]+"&m=");
         emit netRequest(qryString);
-        //mgr->get( QNetworkRequest(QUrl(url_base+qryString)) );
-        //write_c(QString(myCmds[cntrl+1]+"|hack|28|0|"+myCmds[cntrl+1]+"\n"));
         break;
     case 2:
         //sjoin|uuid|channel|type|sjoin
@@ -107,20 +103,17 @@ bool Worker::processRequest(QString cmd) // will spawn a thread to handle client
         //csmroom|room|status|csmroom --13
         qryString = QString("cmd=suidlroom&c="+args[2]+"&u1="+args[1]+"&u2=&t="+args[3]+"&m="+args[4]);
         emit netRequest(qryString);
-        /*write_c(QString(myCmds[cntrl+1]+"|hack|0|"+myCmds[cntrl+1]+"\n"),client);*/
 
         //crecvmsg|room|user|message|crecvmsg --14
         qryString = QString("cmd=srecvmsg&r="+args[1]+"&u1="+args[1]+"&u2=&c=&t=&m=");
-        /*write_c(QString(myCmds[cntrl+2]+"|hack|dan|"+args[4]+"|"+myCmds[cntrl+2]+"\n"),client);*/
         break;
     case 15:
         if(args[1].length() > 0)
         {
             QString uuidStr = args[1].simplified();
-            uuidStr.replace( " ", "" );
-            //uuid = atoi(uuidStr.toStdString().c_str());
+            uuidStr.replace(" ", "");
             uuid = uuidStr;
-            qDebug() << "uuid is: " << uuid;
+            //qDebug() << "uuid is: " << uuid;
             write_c(QString(myCmds[cntrl+1]+"|0|"+myCmds[cntrl+1]+"\n"),client);
         }
         else
@@ -129,7 +122,7 @@ bool Worker::processRequest(QString cmd) // will spawn a thread to handle client
         }
         break;
     default:
-        write_c(QString("Hello, client. Idk wtf you want.\n"),client);
+        write_c(QString("Server: Bad request.\n"),client);
         break;
     }
 
@@ -204,7 +197,6 @@ QStringList Worker::parse(QString cmd)
     return cmd.split(regex);
 }
 
-
 void Worker::onDisconnect()
 {
     mutex.lock();
@@ -221,18 +213,33 @@ void Worker::onHttpFinish(QNetworkReply *rply)
 
     /* must handle message broadcast replies differently */
     QStringList reply = parse(str);
-    if(reply.size()==6 && reply[0]=="cuidlroom")
+    if(reply.size()>0)
     {
-        // convert comma delimited uuid into QList<QString>
-        QStringList users = reply[1].split(",");
-        // write response message to caller
-        write_c(QString("csmroom|"+reply[3]+"|0|csmroom"),client);
-        // write receive messages to callees
-        messageClients(users,QString("crecvmsg|"+reply[3]+"|"+reply[4]+"|"+reply[2]+"|crecvmsg"));
-    }
-    else
-    {
-        write_c(str,client);
+        if(reply[0]=="cuidlroom" && reply.size()==6)
+        {
+            // convert comma delimited uuid into QList<QString>
+            QStringList users = reply[1].split(",");
+            // write response message to caller
+            write_c(QString("csmroom|"+reply[3]+"|0|csmroom"),client);
+            // write receive messages to callees
+            messageClients(users,QString("crecvmsg|"+reply[3]+"|"+reply[4]+"|"+reply[2]+"|crecvmsg"));
+        }
+        else if(reply[0]=="culroom" && reply.size()==4)
+        {
+            emit netRequest(QString("cmd=sulroom2&c="+reply[2]+"&u1=&u2=&t=&m="));
+            write_c(QString("culroom|"+reply[1]+"|culroom"),client);
+        }
+        else if(reply[0]=="culroom2" && reply.size()==4)
+        {
+            // convert comma delimited uuid into QList<QString>
+            QStringList users = reply[1].split(",");
+            // write user list
+            messageClients(users,QString("culroom|"+reply[2]+"|culroom"));
+        }
+        else
+        {
+            write_c(str,client);
+        }
     }
 }
 
@@ -251,22 +258,16 @@ QTcpSocket* Worker::getClientSocket()
     return client;
 }
 
-void Worker::messageClients(QStringList users, QString msg) // 03/14/14 should look over.
+void Worker::messageClients(QStringList users, QString msg)
 {
-    qDebug() << "Users size is " << users.size() << " , " << users;
-    qDebug() << "Workers size is " << workers->size();
-    QHash<QThread*, Worker *>::const_iterator it = workers->constBegin();
+    QHash<QThread*, Worker *>::const_iterator it;
     for (int i = 0; i < users.size(); i++)
     {
-        qDebug() << "Users index: " << i;
-        qDebug() << "Users.at(index): " << users.at(i);
+        it = workers->constBegin();
         while (it != workers->constEnd())
         {
-            qDebug() << "Worker UUID: " << it.value()->getUuid();
             if(it.value()->getUuid() == users.at(i))
             {
-                // it.key(); it.value();
-                qDebug() << "Match found!";
                 if(it.value()->getClientSocket()->isOpen())
                 {
                     write_c(msg,it.value()->getClientSocket());
@@ -274,6 +275,5 @@ void Worker::messageClients(QStringList users, QString msg) // 03/14/14 should l
             }
             it++;
         }
-        it = workers->constBegin();
     }
 }

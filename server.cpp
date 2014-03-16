@@ -11,7 +11,7 @@ Server::Server(QObject* parent) :
     mgr = new QNetworkAccessManager();
     svr_mgr = new QNetworkAccessManager();
     workers = new QHash<QThread *,Worker *>();
-    url_base = "http://192.168.62.203/chathack/?";
+    url_base = "http://192.168.62.204/chathack/?";
     connect(mgr,SIGNAL(finished(QNetworkReply*)),this,SLOT(onHttpFinish(QNetworkReply*)));
     connect(svr_mgr,SIGNAL(finished(QNetworkReply*)),this,SLOT(onSvrHttpFinish(QNetworkReply*)));
 }
@@ -55,8 +55,6 @@ void Server::onDisconnect(QThread *t)
     Worker *toDelete = workers->find(t).value();
     QString qry = "cmd=sexit&c=&u1="+QString(toDelete->getUuid())+"&u2=&t=&m=";
     log.log("Server: Client ("+QString(toDelete->getUuid())+") disconnection occurred.\n");
-    // something fishy is happening here... uuid is blank!
-    // also, client sometimes doesn't send me suuid after login!
     svr_mgr->get(QNetworkRequest(QUrl(url_base+qry)));
     workers->remove(t);
     delete(toDelete);

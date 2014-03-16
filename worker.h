@@ -28,7 +28,6 @@ public:
     bool isOpen();
     QString getUuid();
     QTcpSocket* getClientSocket();
-    //void HttpFinish(QNetworkReply *rpy);
 
     static QMutex mutex;
 
